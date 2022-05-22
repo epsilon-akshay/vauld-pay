@@ -71,6 +71,7 @@ func Transfer(s Service) http.HandlerFunc {
 }
 func ConvertCurrency(amount float64, userName string, email string, client *redis.Client, cryptoCurr string, fiatCurr string) error {
 	fiatAmount := amount / 75
+	fmt.Println("asdasd", fiatAmount)
 
 	r, err := client.Get(context.Background(), email).Bytes()
 	if err == redis.Nil {
@@ -106,6 +107,7 @@ func ConvertCurrency(amount float64, userName string, email string, client *redi
 				for _, j := range i.FiatAmountDetails {
 					am := j.Val
 					if fiatCurr == j.Currency {
+						fmt.Println("qweqwe", j.Val, j.Currency)
 						am = j.Val + fiatAmount
 					}
 					final = append(final, Amount{Val: am, Currency: j.Currency})
@@ -113,7 +115,6 @@ func ConvertCurrency(amount float64, userName string, email string, client *redi
 				t.FiatAmountDetails = final
 			}
 		}
-
 		wAddrs = append(wAddrs, t)
 	}
 
@@ -161,17 +162,17 @@ func AddToWallet(userName string, email string, amount float64, client *redis.Cl
 				t.CryptoAmountDetails = final
 			}
 
-			if fiatCurr != "" {
-				final := []Amount{}
-				for _, j := range i.FiatAmountDetails {
-					am := j.Val
-					if fiatCurr == j.Currency {
-						am = j.Val + amount
-					}
-					final = append(final, Amount{Val: am, Currency: j.Currency})
-				}
-				t.FiatAmountDetails = final
-			}
+			//if fiatCurr != "" {
+			//	final := []Amount{}
+			//	for _, j := range i.FiatAmountDetails {
+			//		am := j.Val
+			//		if fiatCurr == j.Currency {
+			//			am = j.Val + amount
+			//		}
+			//		final = append(final, Amount{Val: am, Currency: j.Currency})
+			//	}
+			//	t.FiatAmountDetails = final
+			//}
 		}
 
 		wAddrs = append(wAddrs, t)
