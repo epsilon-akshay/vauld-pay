@@ -1,9 +1,10 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 	"math/rand"
 	"net/http"
 	"time"
@@ -12,19 +13,45 @@ import (
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 type Body struct {
-	EmailID string `json:"emailID"`
-	Name    string `json:"name"`
-	IdProof string `json:"id"`
+	EmailID   string        `json:"emailID"`
+	Name      string        `json:"name"`
+	IdProof   string        `json:"id"`
+	AccountNs []WalletValue `json:"wallets"`
 }
 
 type Value struct {
-	WalletAdd []string `json:"walletAddress"`
-	Name      string   `json:"name"`
-	Id        string   `json:"id"`
+	WalletAdd []WalletValue `json:"walletAddress"`
+	Name      string        `json:"name"`
+	Id        string        `json:"id"`
 }
 
+// UnmarshalBinary -
+func (e Value) UnmarshalBinary(data []byte) error {
+	if err := json.Unmarshal(data, &e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i Value) MarshalBinary() ([]byte, error) {
+	return json.Marshal(i)
+}
+
+type WalletValue struct {
+	AccNo               string   `json:"AccNo"`
+	Name                string   `json:"Name"`
+	FiatAmountDetails   []Amount `json:"fiatAmount"`
+	CryptoAmountDetails []Amount `json:"cryptoAmount"`
+	Username            string   `json:"username"`
+}
+
+type Amount struct {
+	Val      float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
 type Service struct {
-	Client *redis.Pool
+	Client *redis.Client
 }
 
 func KycPost(s Service) http.HandlerFunc {
@@ -41,13 +68,21 @@ func KycPost(s Service) http.HandlerFunc {
 			return
 		}
 		walletAddress := RandStringRunes(10)
+		var walValue []WalletValue
+		for _, i := range t.AccountNs {
+			username := i.Name + "@vauld.com"
+			walValue = append(walValue, WalletValue{AccNo: i.AccNo, CryptoAmountDetails: i.CryptoAmountDetails, FiatAmountDetails: i.FiatAmountDetails, Name: i.Name, Username: username})
+		}
+
 		v := Value{
-			WalletAdd: []string{walletAddress},
+			WalletAdd: walValue,
 			Name:      t.Name,
 			Id:        t.IdProof,
 		}
 
-		_, err = s.Client.Get().Do("SET", t.EmailID, v)
+		redisVal, _ := json.Marshal(v)
+
+		err = s.Client.Set(context.Background(), t.EmailID, redisVal, 0).Err()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
@@ -65,8 +100,8 @@ func KycPost(s Service) http.HandlerFunc {
 func KycGet(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Query()["emailID"][0]
-		_, err := redis.String(s.Client.Get().Do("GET", key))
-		if err == redis.ErrNil {
+		val, err := s.Client.Get(context.Background(), key).Result()
+		if err == redis.Nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
 			w.Write([]byte(s))
@@ -77,7 +112,7 @@ func KycGet(s Service) http.HandlerFunc {
 			w.Write([]byte(s))
 			return
 		}
-
+		fmt.Println(val)
 		w.WriteHeader(http.StatusOK)
 		l := fmt.Sprintf("{success:true}")
 		w.Write([]byte(l))
