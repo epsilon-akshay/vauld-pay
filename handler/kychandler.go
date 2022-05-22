@@ -100,7 +100,7 @@ func KycPost(s Service) http.HandlerFunc {
 func KycGet(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Query()["emailID"][0]
-		val, err := s.Client.Get(context.Background(), key).Result()
+		val, err := s.Client.Get(context.Background(), key).Bytes()
 		if err == redis.Nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
@@ -112,10 +112,20 @@ func KycGet(s Service) http.HandlerFunc {
 			w.Write([]byte(s))
 			return
 		}
+
+		var val2 Value
+		err = json.Unmarshal(val, &val2)
+		if err != nil {
+			fmt.Println("asdsadad", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
+			w.Write([]byte(s))
+			return
+		}
+
 		fmt.Println(val)
 		w.WriteHeader(http.StatusOK)
-		l := fmt.Sprintf("{success:true}")
-		w.Write([]byte(l))
+		w.Write(val)
 		return
 	}
 }
