@@ -70,7 +70,7 @@ func Transfer(s Service) http.HandlerFunc {
 	}
 }
 func ConvertCurrency(amount float64, userName string, email string, client *redis.Client, cryptoCurr string, fiatCurr string) error {
-	fiatAmount := amount / 75
+	fiatAmount := amount * 75
 	fmt.Println("asdasd", fiatAmount)
 
 	r, err := client.Get(context.Background(), email).Bytes()
