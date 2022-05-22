@@ -62,6 +62,7 @@ func KycPost(s Service) http.HandlerFunc {
 		var t Body
 		err := decoder.Decode(&t)
 		if err != nil {
+			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
 			w.Write([]byte(s))
@@ -84,6 +85,7 @@ func KycPost(s Service) http.HandlerFunc {
 
 		err = s.Client.Set(context.Background(), t.EmailID, redisVal, 0).Err()
 		if err != nil {
+			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
 			w.Write([]byte(s))
@@ -103,6 +105,7 @@ func KycGet(s Service) http.HandlerFunc {
 		val, err := s.Client.Get(context.Background(), key).Bytes()
 		if err == redis.Nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(err)
 			s := fmt.Sprintf("{success:false, err:%s}", err.Error())
 			w.Write([]byte(s))
 			return
